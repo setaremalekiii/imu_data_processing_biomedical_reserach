@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <main.h>
 #include "stdio.h"
-
+#include "stm32h7xx_hal_gpio.h"
 
 typedef struct{
     int16_t x_accel; 
@@ -16,13 +16,15 @@ extern SPI_HandleTypeDef hspi1;
 #define IMU_SPI hspi1
 #define IMU_CS_PORT GPIOA
 #define IMU_CS_PIN  GPIO_PIN_4
-#define ACCEL_RANGE_VALUE _accel_4g
+#define ACCEL_RANGE_VALUE _accel_2g
 
 #define REG_BANK_SEL 0x7f
 #define ODR_ALIGN_EN 0x09
-#define WHO_AM_I 0
+#define WHO_AM_I 0x00
 #define PWR_MGMT_1 0x06
 #define USER_CTRL 0x03
+#define LP_CONFIG 0x05 
+#define PWR_MGMT_2 0x07
 #define ACCEL_SIMLRT_DIV_1 0x10
 #define ACCEL_SMPLRT_DIV_2 0x10
 #define ACCEL_CONFIG 0x14 
