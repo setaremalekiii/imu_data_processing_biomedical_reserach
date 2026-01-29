@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2025 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -17,11 +17,11 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-// using stdio for printf debugging 
-#include <stdio.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#include "..\Inc\main.h"
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,14 +46,8 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-// Constants for the ICM20938 IMU 
-const uint8_t ACCEL_XOUT_H =  0x2D;
-const uint8_t ACCEL_XOUT_L = 0x2E;
-const uint8_t ACCEL_YOUT_H = 0x2F;
-const uint8_t ACCEL_YOUT_L = 0x30; 
-const uint8_t ACCEL_ZOUT_H = 0x31;
-const uint8_t ACCEL_ZOUT_L = 0x32;
-axises my_accel;
+volatile uint8_t spi_transmit_flag = 0;
+volatile uint8_t spi_recieve_flag = 0;
 
 /* USER CODE END PV */
 
@@ -61,8 +55,8 @@ axises my_accel;
 void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -80,11 +74,9 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-// UART is used to store strings that will print out over serial for debugging
-  char uart_buf[50];
-  int uart_buf_len;
-  char spi_buf[50];
-  int uart_len;
+  // allocating an instance not a pointer
+  imu_data_t imu_data;
+
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -108,128 +100,62 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
-  MX_DMA_Init();
   MX_USART3_UART_Init();
-  MX_TIM3_Init();
-
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_Delay(100);
-  // Using the GPIO HAL library since we defined our cs as a GPIO Output pin
-  // This is pin D14 or DE in hex on the board
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // Test 
-  uart_buf_len = sprintf(uart_buf, "HELLO IM ALIVE");
-  // Notice how I gave the address of the huart cuz the its a struct instance 
-  // and my program is expecting a pointer to that struct instance so I & it 
-  HAL_UART_Transmit(&huart3, (uint8_t*)uart_buf, uart_buf_len, HAL_MAX_DELAY);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
 
-  // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1 
-  uint8_t reg_addr = 0x7F;
-  uint8_t bank_reg = 0x00; // Example value for bank 0 selection
+  // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
+  void transmit_uint8(int16_t value) {
+    char buffer[7]; // Buffer to hold "32767\0" (max value is 32767, plus null terminator)
 
-  
-  // CS low to start 
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // SPI handle, data we want to send, size of data (number of byte), timeout
-  //  WHO_AM_I regiter page 36 of datasheet
-  reg_addr = 0x00|0x80 //MSB indicating r/w operations Read (1) or Write (0) 
-  HAL_SPI_Transmit(&hspi1, &reg_addr, 1, 100);
-  HAL_SPI_Transmit(&hspi1, &bank_reg, 1, 100);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-  HAL_Delay(100);
+    // Convert the int16_t value to a string in the buffer
+    sprintf(buffer, "%d\r\n", value);
 
-  // cs high to end
-  // Now read back the WHO_AM_I register to verify we set the bank correctly
-  // Bit 7 (MSB), 6, 5, 4, 3, 2, 1, 0 (LSB)
-  // Hex 0x80 in binary is: 1000 0000
-  // That means only bit 7 (the most significant bit) is 1, all others are 0.
-  uint8_t reg_addr = 0x00|0x80; // Set MSB for read operation
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(&hspi1, &reg_addr, 1, 100);
-  HAL_SPI_Receive(&hspi1, &bank_reg, 1, 100);
-  printf("Who am I 0x%x \n", bank_reg);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-  //reset value should be EA 
-  //uart_buf_len = printf("WHO AM I? 0x%02X");
+    // Transmit each character of the string over UART
+    for (int i = 0; i < strlen(buffer); i++) {
+        HAL_UART_Transmit(&huart3, (uint8_t*)&buffer[i], 1, 100);
+    }
+  }
 
-  // HAL_GPIO_WritePin(GPIO,GPIO_PIN_14, GPIO_PIN_SET );
-  // HAL_Delay(10);
-  // uint8_t tx2[2];
-  // uint8_t reg;
-  // uint8_t val;
-  //   // Select register bank 0
-  // tx2[0] = ICM20948_REG_REG_BANK_SEL & 0x7F;  // write
-  // tx2[1] = 0x00;                              // bank 0
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // HAL_SPI_Transmit(&hspi1, tx2, 2, HAL_MAX_DELAY);
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-  // // Disable I2C, enable SPI only: USER_CTRL = 0x10
-  // tx2[0] = ICM20948_REG_USER_CTRL & 0x7F;
-  // tx2[1] = 0x10;
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // HAL_SPI_Transmit(&hspi1, tx2, 2, HAL_MAX_DELAY);
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-  // // Wake up device, auto-select best clock: PWR_MGMT_1 = 0x01
-  // tx2[0] = ICM20948_REG_PWR_MGMT_1 & 0x7F;
-  // tx2[1] = 0x01;
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // HAL_SPI_Transmit(&hspi1, tx2, 2, HAL_MAX_DELAY);
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-  // // Enable accelerometer (all axes): PWR_MGMT_2 = 0x00
-  // tx2[0] = ICM20948_REG_PWR_MGMT_2 & 0x7F;
-  // tx2[1] = 0x00;
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // HAL_SPI_Transmit(&hspi1, tx2, 2, HAL_MAX_DELAY);
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-  // HAL_Delay(50);
-
-  // // --- Read WHO_AM_I once and print ---
-
-  // reg = ICM20948_REG_WHO_AM_I | 0x80;  // read bit set
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-  // HAL_SPI_Transmit(&hspi1, &reg, 1, HAL_MAX_DELAY);
-  // HAL_SPI_Receive(&hspi1, &val, 1, HAL_MAX_DELAY);
-  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-  // uart_len = snprintf(uart_buf, sizeof(uart_buf),
-  //                     "WHO_AM_I = 0x%02X\r\n", val);
-  // HAL_UART_Transmit(&huart3, (uint8_t*)uart_buf, uart_len, HAL_MAX_DELAY);
-
+  //initialize imu 
+  imu_init();
 
   /* USER CODE END 2 */
 
+  /* Initialize leds */
+  BSP_LED_Init(LED_GREEN);
+  BSP_LED_Init(LED_YELLOW);
+  BSP_LED_Init(LED_RED);
+
+  /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
+  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  //const uint8_t buffer[] = "  Hello from STM32H7!\r\n";
+
   while (1)
   {
+
     /* USER CODE END WHILE */
-      // Read 6 accel bytes starting at ACCEL_XOUT_H
-      // uint8_t rx_buf[6];
-      // int16_t ax, ay, az;
-
-      // reg = ICM20948_REG_ACCEL_XOUT_H | 0x80;  // read
-      // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-      // HAL_SPI_Transmit(&hspi1, &reg, 1, HAL_MAX_DELAY);
-      // HAL_SPI_Receive(&hspi1, rx_buf, 6, HAL_MAX_DELAY);
-      // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-
-      // ax = (int16_t)((rx_buf[0] << 8) | rx_buf[1]);
-      // ay = (int16_t)((rx_buf[2] << 8) | rx_buf[3]);
-      // az = (int16_t)((rx_buf[4] << 8) | rx_buf[5]);
-
-      // uart_len = snprintf(uart_buf, sizeof(uart_buf),
-      //                     "ACCEL: X=%d Y=%d Z=%d\r\n", ax, ay, az);
-      // HAL_UART_Transmit(&huart3, (uint8_t*)uart_buf, uart_len, HAL_MAX_DELAY);
-
-      // HAL_Delay(100); // 10 Hz
 
     /* USER CODE BEGIN 3 */
+    HAL_StatusTypeDef uart_status;
+    //passing in the address to make it a pointer!
+    imu_read_data(&imu_data);
+    HAL_Delay(100);
+    int16_t x_accel = imu_data.x_accel;
+    transmit_uint8(x_accel);
+    HAL_Delay(100);
+    int16_t y_accel = imu_data.y_accel;
+    transmit_uint8(y_accel);
+    HAL_Delay(100);
+    int16_t z_accel = imu_data.z_accel;
+    transmit_uint8(z_accel);
+  
+    //status = HAL_UART_Transmit(&huart3, buffer, sizeof(buffer)/sizeof(buffer[0]), 100);
+    HAL_Delay(1000);
+
   }
   /* USER CODE END 3 */
 }
@@ -249,7 +175,7 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
@@ -263,8 +189,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 12;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 3;
+  RCC_OscInitStruct.PLL.PLLP = 1;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -279,13 +205,13 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
                               |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV1;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV1;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
+  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
@@ -316,7 +242,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -397,28 +323,28 @@ static void MX_USART3_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
 
-  /*Configure GPIO pin : PD14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  /*Configure GPIO pin : PA4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
 
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -468,8 +394,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
