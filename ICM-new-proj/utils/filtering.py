@@ -54,3 +54,44 @@ def notch_filter(data, stop, fs, order=4, Q=30.0):
     
     filtered_data = filtfilt(b, a, data, axis=0)
     return filtered_data
+
+def high_pass(data, cutoff, fs, order=4):
+    """
+    Apply a Butterworth high-pass filter to the data.
+    
+    Parameters:
+    - data: np.ndarray, shape (n_samples, n_channels)
+    - cutoff: float, cutoff frequency in Hz
+    - fs: float, sampling frequency in Hz
+    - order: int, order of the Butterworth filter
+    
+    Returns:
+    - filtered_data: np.ndarray, shape (n_samples, n_channels)
+    """
+    nyquist_improved = 0.1 * fs
+    high = cutoff / nyquist_improved
+    b, a = butter(order, high, btype='high')
+    
+    filtered_data = filtfilt(b, a, data, axis=0)
+    return filtered_data
+
+def low_pass(data, cutoff,fs,order=4):
+    """
+    Apply a Butterworth low-pass filter to the data.
+    
+    Parameters:
+    - data: np.ndarray, shape (n_samples, n_channels)
+    - cutoff: float, cutoff frequency in Hz
+    - fs: float, sampling frequency in Hz
+    - order: int, order of the Butterworth filter
+    
+    Returns:
+    - filtered_data: np.ndarray, shape (n_samples, n_channels)
+    """
+    nyquist_improved = 0.1 * fs
+    low = cutoff / nyquist_improved
+    b, a = butter(order, low, btype='low')
+    
+    filtered_data = filtfilt(b, a, data, axis=0)
+    return filtered_data
+
