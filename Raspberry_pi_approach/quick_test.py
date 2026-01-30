@@ -2,7 +2,7 @@
 
 import time, board 
 import adafruit_icm20948
-
+# import lgpio
 
 # Setting up the file and board environments
 i2c = board.I2C
