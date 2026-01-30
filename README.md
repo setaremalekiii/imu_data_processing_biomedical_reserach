@@ -20,3 +20,14 @@ first read WHO_AM_I = 0xEA from address 0x00 in User Bank 0 on the ICM-20948.
 if you read 0x00, that almost always means the IMU is not actually driving MISO. check: wrong mode/wiring/CS/voltage
 
 Ensure that the gpio cs pin is SET in MX_GPIO_Init() or eles you'll need to do a software reset for anything to work  
+
+
+## Architecture
+
+STM32  will read data using interupt based SPI communication at a high frequency
+
+DMA and circular buffers will be used to store the data and write it to the serial port using UART -> this way the CPU is not occupied for writing data to the serial port. 
+
+Once the data is written to the serial port, another python script will be ran which will be listening to the serial port on the same COM and baud   rate to record the sensor readings and write them to a csv file. 
+
+The csv file is then analyzed to create meaningful plots.
