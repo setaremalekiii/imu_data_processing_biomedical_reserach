@@ -1,4 +1,4 @@
-# IBL sensor reading and processing
+# IMU sensor reading and processing
 A repository for all software and firmware for my research project. 
 
 ## Table of Contents
