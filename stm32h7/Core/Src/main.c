@@ -104,28 +104,12 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1 
-  uint8_t reg_addr = 0x7F;
-  uint8_t bank_reg = 0x00; // Example value for bank 0 selection
-  uint8_t who_am_i;
-
-  // CS low to start 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-  // SPI handle, data we want to send, size of data (number of byte), timeout
-  //  WHO_AM_I regiter page 36 of datasheet
-  reg_addr = 0x00|0x80; //MSB indicating r/w operations Read (1) or Write (0) 
-  HAL_StatusTypeDef spi_status;
-  spi_status = HAL_SPI_Transmit(&hspi1, &reg_addr, 1, 100);
-  spi_status  = HAL_SPI_Transmit(&hspi1, &bank_reg, 1, 100);
-  HAL_SPI_Receive(&hspi1, &who_am_i, 1, 100);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-  HAL_Delay(100);
-  
+  // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
   void transmit_uint8(int16_t value) {
     char buffer[7]; // Buffer to hold "32767\0" (max value is 32767, plus null terminator)
 
     // Convert the int16_t value to a string in the buffer
-    sprintf(buffer, "%d", value);
+    sprintf(buffer, "%d\r\n", value);
 
     // Transmit each character of the string over UART
     for (int i = 0; i < strlen(buffer); i++) {
@@ -145,12 +129,13 @@ int main(void)
 
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-
+  uint8_t who = 0;
+  imu_read_reg(_b0, WHO_AM_I, &who);  // WHO_AM_I address 0x00
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   //const uint8_t buffer[] = "  Hello from STM32H7!\r\n";
+
   while (1)
   {
 
@@ -255,16 +240,16 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
-  hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi1.Init.CRCPolynomial = 0x0;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
   hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
   hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
   hspi1.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
