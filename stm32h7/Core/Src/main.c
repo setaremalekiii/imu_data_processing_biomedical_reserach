@@ -129,12 +129,10 @@ int main(void)
 
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-  uint8_t who = 0;
-  imu_read_reg(_b0, WHO_AM_I, &who);  // WHO_AM_I address 0x00
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //const uint8_t buffer[] = "  Hello from STM32H7!\r\n";
+  const uint8_t buffer[] = "  Hello from STM32H7!\r\n";
 
   while (1)
   {
@@ -142,8 +140,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_StatusTypeDef uart_status;
+    // HAL_StatusTypeDef uart_status;
     //passing in the address to make it a pointer!
+    uint8_t data = 0x8f;
+    imu_read_reg(_b0, 0x7f, &data);  // WHO_AM_I address 0x00
     imu_read_data(&imu_data);
     HAL_Delay(100);
     int16_t x_accel = imu_data.x_accel;
