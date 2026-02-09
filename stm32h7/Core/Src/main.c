@@ -46,6 +46,7 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
+// for interupt based later! 
 volatile uint8_t spi_transmit_flag = 0;
 volatile uint8_t spi_recieve_flag = 0;
 
@@ -107,10 +108,6 @@ int main(void)
   // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
   void transmit_uint8(int16_t value) {
     char buffer[7]; // Buffer to hold "32767\0" (max value is 32767, plus null terminator)
-
-    // Convert the int16_t value to a string in the buffer
-    sprintf(buffer, "%d\r\n", value);
-
     // Transmit each character of the string over UART
     for (int i = 0; i < strlen(buffer); i++) {
         HAL_UART_Transmit(&huart3, (uint8_t*)&buffer[i], 1, 100);
@@ -132,32 +129,26 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  const uint8_t buffer[] = "  Hello from STM32H7!\r\n";
 
   while (1)
   {
-
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
-    // HAL_StatusTypeDef uart_status;
     //passing in the address to make it a pointer!
-    uint8_t data = 0x8f;
-    imu_read_reg(_b0, 0x7f, &data);  // WHO_AM_I address 0x00
+    //uint8_t data = 0x8f;
+    //imu_read_reg(_b0, 0x7f, &data);  // WHO_AM_I address 0x00
     imu_read_data(&imu_data);
-    HAL_Delay(100);
-    int16_t x_accel = imu_data.x_accel;
-    transmit_uint8(x_accel);
-    HAL_Delay(100);
-    int16_t y_accel = imu_data.y_accel;
-    transmit_uint8(y_accel);
-    HAL_Delay(100);
-    int16_t z_accel = imu_data.z_accel;
-    transmit_uint8(z_accel);
-  
-    //status = HAL_UART_Transmit(&huart3, buffer, sizeof(buffer)/sizeof(buffer[0]), 100);
-    HAL_Delay(1000);
-
+    // this is all for conversion but lowkey dont need it rn! 
+    // HAL_Delay(1);
+    // int16_t x_accel = imu_data.x_accel;
+    // transmit_uint8(x_accel);
+    // HAL_Delay(1);
+    // int16_t y_accel = imu_data.y_accel;
+    // transmit_uint8(y_accel);
+    // HAL_Delay(1);
+    // int16_t z_accel = imu_data.z_accel;
+    // transmit_uint8(z_accel);
+    // HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }
