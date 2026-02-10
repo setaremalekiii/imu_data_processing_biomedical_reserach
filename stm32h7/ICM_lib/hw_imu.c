@@ -1,6 +1,6 @@
 #include "hw_imu.h"
 
-static  void activate_imu(){
+static void activate_imu(){
     HAL_GPIO_WritePin(IMU_CS_PORT, IMU_CS_PIN, GPIO_PIN_RESET);
 }
 
@@ -17,8 +17,6 @@ static void sel_user_bank(user_bank_t bank){
     HAL_SPI_Transmit(&hspi1, tx, 2, 100);
     HAL_SPI_Receive(&hspi1, rx, 2, 100);
     deactivate_imu();
-    uint8_t who;
-    uint8_t who_am_i = rx[1];
 }
 
 
@@ -53,7 +51,7 @@ void imu_read_reg(user_bank_t bank, uint8_t address, uint8_t *data){
     HAL_StatusTypeDef spi_status;
     spi_status = HAL_SPI_Transmit(&hspi1, &temp_data, 1, 100);
     // watch data variable to see if the correct value is read
-    HAL_SPI_Recieve(&hspi1, data, 1 , 100);
+    HAL_SPI_Receive(&hspi1, data, 1 , 100);
     deactivate_imu();
 }
 
@@ -63,16 +61,14 @@ void imu_read_data(imu_data_t *data){
     uint8_t temp_data = 0x80|ACCEL_XOUT_H;
     activate_imu();
     HAL_SPI_Transmit(&hspi1, &temp_data, 1, 100);
-    HAL_SPI_Receive(&hspi1, data_rx, 12, 100);
+    HAL_SPI_Receive(&hspi1, data_rx, 6, 100);
     // You must combine two 8-bit reads into a 16-bit signed value:
     data -> x_accel = ((uint16_t)data_rx[0] << 8) + data_rx[1];
     data -> y_accel = ((uint16_t)data_rx[2] << 8) + data_rx[3];
     data -> z_accel = ((uint16_t)data_rx[4] << 8) + data_rx[5];
     deactivate_imu();
     //trying to see if I can print the data 
-    const uint16_t buffer[] = data.x_accel;
-    HAL_UART_Transmit(&huart3, buffer, sizeof(buffer)/sizeof(buffer[0]), 100);
-
+    //const uint16_t buffer[] = data.x_accel;
     // sel_user_bank(_b0);
     // uint8_t tx[7] = { (uint8_t)(0x80 | ACCEL_XOUT_H), 0,0,0,0,0,0 };
     // uint8_t buf[] = "hello";
@@ -88,5 +84,6 @@ void imu_read_data(imu_data_t *data){
     // data->x_accel = (int16_t)((rx[1] << 8) | rx[2]);
     // data->y_accel = (int16_t)((rx[3] << 8) | rx[4]);
     // data->z_accel = (int16_t)((rx[5] << 8) | rx[6]);
+
 }
 
