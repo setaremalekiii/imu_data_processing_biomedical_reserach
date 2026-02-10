@@ -89,6 +89,9 @@ void HardFault_Handler(void)
   while (1)
   {
     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+    char error[] = "HARD FAULTTTTT!!!\r\n";
+    HAL_UART_Transmit(&huart3, error, sizeof(error)/sizeof(error[0]), 100);
+    HAL_Delay(1);
     /* USER CODE END W1_HardFault_IRQn 0 */
   }
 }
