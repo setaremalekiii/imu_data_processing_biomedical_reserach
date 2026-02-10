@@ -54,7 +54,7 @@ volatile uint8_t spi_recieve_flag = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MPU_Config(void);
+// static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_SPI1_Init(void);
@@ -81,7 +81,7 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  MPU_Config();
+  // MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -106,11 +106,17 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
-  void transmit_uint8(int16_t value) {
+  void transmit_uint8(uint16_t value) {
     char buffer[7]; // Buffer to hold "32767\0" (max value is 32767, plus null terminator)
+     const uint8_t cr = '\r';
+const uint8_t lf = '\n';
+
     // Transmit each character of the string over UART
     for (int i = 0; i < strlen(buffer); i++) {
         HAL_UART_Transmit(&huart3, (uint8_t*)&buffer[i], 1, 100);
+        // HAL_UART_Transmit(&huart3, &cr, 1, 100);   // Carriage Return
+        // HAL_UART_Transmit(&huart3, &lf, 1, 100);   // Line Feed
+
     }
   }
 
@@ -129,6 +135,27 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  uint8_t reg = 0x7f;
+  uint8_t data =0;
+  uint8_t cr = '\r';
+  uint8_t lf = '\n';
+
+  HAL_SPI_Transmit(&hspi1, &reg,1,100);
+  HAL_SPI_Transmit(&hspi1, &data,1,100);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  reg = 0x00|0x80;
+  HAL_SPI_Transmit(&hspi1,&reg,1,100);
+  HAL_SPI_Receive(&hspi1,&data,1,100);
+  //const uint16_t buffer[] = data.x_accel;
+  //HAL_UART_Transmit(&huart3, buffer, sizeof(buffer)/sizeof(buffer[0]), 100);
+  HAL_UART_Transmit(&huart3, &data, 1, 100);
+  HAL_UART_Transmit(&huart3, &cr, 1, 100);   // Carriage Return
+  HAL_UART_Transmit(&huart3, &lf, 1, 100);   // Line Feed
+
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
 
   while (1)
   {
@@ -138,17 +165,19 @@ int main(void)
     //uint8_t data = 0x8f;
     //imu_read_reg(_b0, 0x7f, &data);  // WHO_AM_I address 0x00
     imu_read_data(&imu_data);
+    //HAL_UART_Transmit(&huart3, &imu_data, 1, 100);
+
     // this is all for conversion but lowkey dont need it rn! 
-    // HAL_Delay(1);
-    // int16_t x_accel = imu_data.x_accel;
-    // transmit_uint8(x_accel);
-    // HAL_Delay(1);
-    // int16_t y_accel = imu_data.y_accel;
-    // transmit_uint8(y_accel);
-    // HAL_Delay(1);
-    // int16_t z_accel = imu_data.z_accel;
-    // transmit_uint8(z_accel);
-    // HAL_Delay(1);
+    HAL_Delay(1);
+    int16_t x_accel = imu_data.x_accel;
+    transmit_uint8(x_accel);
+    HAL_Delay(1);
+    int16_t y_accel = imu_data.y_accel;
+    transmit_uint8(y_accel);
+    HAL_Delay(1);
+    int16_t z_accel = imu_data.z_accel;
+    transmit_uint8(z_accel);
+    HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }
