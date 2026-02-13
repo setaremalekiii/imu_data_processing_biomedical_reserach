@@ -53,6 +53,9 @@ void imu_write_reg(user_bank_t bank, uint8_t reg, uint8_t data){
 
 void imu_read_reg(user_bank_t bank, uint8_t address, uint8_t *data){
     sel_user_bank(bank);
+    // SPI is always full-duplex: every received bit happens at the same time as a transmitted bit. 
+    // So to “receive 1 byte”, the master must still provide 8 clock pulses, which normally happens 
+    // by transmitting a dummy byte (commonly 0x00 or 0xFF).
     uint8_t temp_data = 0x80 | address; // MSB 1 for read
     activate_imu();
     HAL_StatusTypeDef spi_status;
