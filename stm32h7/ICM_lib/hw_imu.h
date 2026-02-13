@@ -13,17 +13,17 @@ typedef struct{
 } imu_data_t;
 
 extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart3;
+#define ACCEL_RANGE_VALUE ((accel_range_t) _accel_2g)
 #define IMU_CS_PORT GPIOA
 #define IMU_CS_PIN  GPIO_PIN_4
-#define ACCEL_RANGE_VALUE _accel_2g
-
 #define REG_BANK_SEL 0x7F
 #define ODR_ALIGN_EN 0x09
 #define WHO_AM_I 0
 #define PWR_MGMT_1 0x06
 #define USER_CTRL 0x03
-#define ACCEL_SIMLRT_DIV_1 0x10
-#define ACCEL_SMPLRT_DIV_2 0x10
+#define ACCEL_SMPLRT_DIV_1 0x10
+#define ACCEL_SMPLRT_DIV_2 0x11
 #define ACCEL_CONFIG 0x14 
 #define ACCEL_XOUT_H 0x2D
 #define ACCEL_XOUT_L 0x2E
