@@ -9,6 +9,7 @@ static void deactivate_imu(){
 }
 
 static void sel_user_bank(user_bank_t bank){
+    // confirming the correct REG_BANK is selected
     uint8_t tx[2] = { (uint8_t)(REG_BANK_SEL & 0x7F), (uint8_t)(bank) }; // write 0x7F then bank
     // adding rx call for testing 
     uint8_t rx[2] = {0};
@@ -23,16 +24,22 @@ static void sel_user_bank(user_bank_t bank){
 void imu_init(void){
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
     uint8_t temp_data;
-    imu_write_reg(_b0,PWR_MGMT_1, 0xc1); //resets imu sensor
-    HAL_Delay(100); // givnig some time for imu to wake up and be ready for communication
-    imu_write_reg(_b0, PWR_MGMT_1, 0x01); // exit sleep mode 
-    imu_write_reg(_b2,ODR_ALIGN_EN, 0x01); // data alignment -> synchornization not rlly needed 
-    imu_write_reg(_b2,  ACCEL_SIMLRT_DIV_1,0x00); // setting sampling rate this is the divider =0
-    imu_write_reg(_b2,  ACCEL_SMPLRT_DIV_2,0x00);
+    // setting pwr mgmt 1 to 0b11000001 auto clear and select default PLL clock
+    // imu_write_reg(_b0,PWR_MGMT_1, 0xc1); //resets imu sensor
+    // HAL_Delay(100); // givnig some time for imu to wake up and be ready for communication
+    // 
+    // imu_write_reg(_b0, PWR_MGMT_1, 0x01); // exit sleep mode 
+    imu_write_reg(_b0, PWR_MGMT_1, 0x80);   // DEVICE_RESET only
+    HAL_Delay(100);                        // 100ms is safe (often 10–100ms used)
+    imu_write_reg(_b0, PWR_MGMT_1, 0x01);   // wake + PLL/auto clock (CLKSEL=1)
+    imu_write_reg(_b2, ODR_ALIGN_EN, 0x01); // data alignment -> synchornization not rlly needed 
+    imu_write_reg(_b2, ACCEL_SMPLRT_DIV_1,0x00); // MSB 
+    imu_write_reg(_b2, ACCEL_SMPLRT_DIV_2,0x00); //Page 63
     imu_write_reg(_b2, ACCEL_CONFIG, ((ACCEL_RANGE_VALUE<< 1)|0x01)); // turning on the digital lowpass filter
+    // 00010000 the 4th bit is enabled meaning disable I2C and enable SPI
     imu_read_reg(_b0, USER_CTRL, &temp_data); // serial interface entering spi mode
     temp_data |= 0x10;
-    imu_write_reg(_b2, USER_CTRL, temp_data); 
+    imu_write_reg(_b0, USER_CTRL, temp_data); 
     sel_user_bank(_b0);
 }
 
