@@ -69,14 +69,17 @@ void imu_read_reg(user_bank_t bank, uint8_t address, uint8_t *data){
 void imu_read_data(imu_data_t *data){
     uint8_t data_rx[6];
     uint8_t temp_data = 0x80|ACCEL_XOUT_H;
+        sel_user_bank(_b0);
+
     activate_imu();
     HAL_SPI_Transmit(&hspi1, &temp_data, 1, 100);
     HAL_SPI_Receive(&hspi1, data_rx, 6, 100);
+    deactivate_imu();
+
     // You must combine two 8-bit reads into a 16-bit signed value:
     data -> x_accel = ((uint16_t)data_rx[0] << 8) + data_rx[1];
     data -> y_accel = ((uint16_t)data_rx[2] << 8) + data_rx[3];
     data -> z_accel = ((uint16_t)data_rx[4] << 8) + data_rx[5];
-    deactivate_imu();
     //trying to see if I can print the data 
     //const uint16_t buffer[] = data.x_accel;
     // sel_user_bank(_b0);
