@@ -54,7 +54,7 @@ volatile uint8_t spi_recieve_flag = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-// static void MPU_Config(void);
+static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_SPI1_Init(void);
@@ -81,7 +81,7 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  // MPU_Config();
+  //MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -107,17 +107,9 @@ int main(void)
 
   // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
   void transmit_uint8(uint16_t value) {
-    char buffer[7]; // Buffer to hold "32767\0" (max value is 32767, plus null terminator)
-     const uint8_t cr = '\r';
-const uint8_t lf = '\n';
-
-    // Transmit each character of the string over UART
-    for (int i = 0; i < strlen(buffer); i++) {
-        HAL_UART_Transmit(&huart3, (uint8_t*)&buffer[i], 1, 100);
-        // HAL_UART_Transmit(&huart3, &cr, 1, 100);   // Carriage Return
-        // HAL_UART_Transmit(&huart3, &lf, 1, 100);   // Line Feed
-
-    }
+    char buf[10]; // "-32768\r\n" fits
+    int n = snprintf(buf, sizeof(buf), "%d\r\n", (int)value);
+    if (n > 0) HAL_UART_Transmit(&huart3, (uint8_t*)buf, (uint16_t)strlen(buf), 100);
   }
 
   //initialize imu 
@@ -135,7 +127,7 @@ const uint8_t lf = '\n';
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
   uint8_t reg = 0x7f;
   uint8_t data =0;
   uint8_t cr = '\r';
@@ -143,9 +135,9 @@ const uint8_t lf = '\n';
 
   HAL_SPI_Transmit(&hspi1, &reg,1,100);
   HAL_SPI_Transmit(&hspi1, &data,1,100);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
   HAL_Delay(100);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
   reg = 0x00|0x80;
   HAL_SPI_Transmit(&hspi1,&reg,1,100);
   HAL_SPI_Receive(&hspi1,&data,1,100);
@@ -155,19 +147,21 @@ const uint8_t lf = '\n';
   HAL_UART_Transmit(&huart3, &cr, 1, 100);   // Carriage Return
   HAL_UART_Transmit(&huart3, &lf, 1, 100);   // Line Feed
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
 
   while (1)
   {
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
     //passing in the address to make it a pointer!
     //uint8_t data = 0x8f;
     //imu_read_reg(_b0, 0x7f, &data);  // WHO_AM_I address 0x00
+
     imu_read_data(&imu_data);
     //HAL_UART_Transmit(&huart3, &imu_data, 1, 100);
 
-    // this is all for conversion but lowkey dont need it rn! 
+    // this is all for conversion take out after testing
     HAL_Delay(1);
     int16_t x_accel = imu_data.x_accel;
     transmit_uint8(x_accel);
@@ -261,10 +255,10 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -356,15 +350,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  // Making sure the GPIO is set high for the imu reset
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA4 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  /*Configure GPIO pin : PD14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
