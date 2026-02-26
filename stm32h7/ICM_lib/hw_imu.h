@@ -15,8 +15,8 @@ typedef struct{
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart3;
 #define ACCEL_RANGE_VALUE ((accel_range_t) _accel_2g)
-#define IMU_CS_PORT GPIOA
-#define IMU_CS_PIN  GPIO_PIN_4
+#define IMU_CS_PORT GPIOD
+#define IMU_CS_PIN  GPIO_PIN_14
 #define REG_BANK_SEL 0x7F
 #define ODR_ALIGN_EN 0x09
 #define WHO_AM_I 0
