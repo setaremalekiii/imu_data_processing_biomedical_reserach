@@ -1,144 +1,139 @@
-import os, time, struct
-import matplotlib.pyplot as plt
-import numpy as np
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
+# ---- config ----
+INPUT_CSV = "reading.csv"   # from the collector
+SCALE_LSB_PER_G = 16384.0     # adjust if your IMU full-scale is not ±2g
+G_TO_MS2 = 9.80665
 
-SCALE_LSB_PER_G = 16384.0 # from the internet
-G_TO_MS2 = 9.80665 
-t_list, ax_list, ay_list, az_list = [], [], [], []
-t0 = time.perf_counter()
-duration_s = 30.0  # one duration for both
+# ---- output folder ----
 base_dir = Path("results")
 base_dir.mkdir(exist_ok=True)
-date = datetime.now()
-formatted_date = date.strftime("%Y-%m-%d_%H_%M_%S")
-trial_dir = base_dir / f"{formatted_date}"
+trial_dir = base_dir / datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 trial_dir.mkdir()
 print("Saving to", trial_dir)
 
-# ---------- read accel for ~60 seconds ----------
-t_list, ax_list, ay_list, az_list = [], [], [], []
-t0 = time.perf_counter()
-target_duration = 30.0
+# ---- load raw csv ----
+t_list, x_list, y_list, z_list = [], [], [], []
 
-# Data collection loop 
-    # while True:
-    #     i = 0
+with open(INPUT_CSV, "r", newline="") as f:
+    r = csv.reader(f)
+    header = next(r, None)  # ["t_s","x_counts","y_counts","z_counts"]
 
+    for row in r:
+        if len(row) < 5:
+            continue
+        try:
+            t_s = float(row[1])
+            x = int(row[2])
+            y = int(row[3])
+            z = int(row[4])
+        except ValueError:
+            continue
 
-    #     raw6 = reult.csv
-    #     ax_counts, ay_counts, az_counts = struct.unpack(">hhh", raw6)
-    #     ax_g = ax_counts / SCALE_LSB_PER_G
-    #     ay_g = ay_counts / SCALE_LSB_PER_G
-    #     az_g = az_counts / SCALE_LSB_PER_G
-    #     ax = ax_g * G_TO_MS2
-    #     ay = ay_g * G_TO_MS2
-    #     az = az_g * G_TO_MS2
+        t_list.append(t_s)
+        x_list.append(x)
+        y_list.append(y)
+        z_list.append(z)
 
-    #     now = time.perf_counter() - t0
-    #     t_list.append(now)
-    #     ax_list.append(ax)
-    #     ay_list.append(ay)
-    #     az_list.append(az)
-
-    #     #print(f"{now:6.3f}s  ax={ax_g:+.3f}g  ay={ay_g:+.3f}g  az={az_g:+.3f}g")
-
-    #     if now >= target_duration:
-    #         break
-
-# Data pre-processing and saving
-# Convert to numpy arrays
 t = np.asarray(t_list, dtype=float)
-ax_arr = np.asarray(ax_list, dtype=float)
-ay_arr = np.asarray(ay_list, dtype=float)
-az_arr = np.asarray(az_list, dtype=float)
-with open(trial_dir / "scaled_data.csv", "w", newline="") as f:
+x_counts = np.asarray(x_list, dtype=float)
+y_counts = np.asarray(y_list, dtype=float)
+z_counts = np.asarray(z_list, dtype=float)
+
+if len(t) < 2:
+    raise RuntimeError("Not enough samples in raw_accel.csv to process.")
+
+# ---- estimate sample rate from timestamps ----
+dt = np.diff(t)
+dt = dt[dt > 0]  # remove any zeros / weirdness
+fs = 1.0 / np.mean(dt)
+duration_s = t[-1] - t[0]
+print(f"Samples: {len(t)}")
+print(f"Duration: {duration_s:.3f} s")
+print(f"Estimated sample rate: {fs:.2f} Hz")
+
+# ---- convert counts -> g -> m/s^2 ----
+ax = (x_counts / SCALE_LSB_PER_G) * G_TO_MS2
+ay = (y_counts / SCALE_LSB_PER_G) * G_TO_MS2
+az = (z_counts / SCALE_LSB_PER_G) * G_TO_MS2
+
+print(f"Mean ax (m/s²): {ax.mean():.4f}")
+print(f"Mean ay (m/s²): {ay.mean():.4f}")
+print(f"Mean az (m/s²): {az.mean():.4f}")
+
+# ---- save scaled data ----
+scaled_path = trial_dir / "scaled_data.csv"
+with open(scaled_path, "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["time_s", "ax_m_s2", "ay_m_s2", "az_m_s2"])
-    for ti, x, y, z in zip(t, ax_arr, ay_arr, az_arr):
+    w.writerow(["t_s", "ax_m_s2", "ay_m_s2", "az_m_s2"])
+    for ti, x, y, z in zip(t, ax, ay, az):
         w.writerow([ti, x, y, z])
+print("Wrote", scaled_path)
 
-print(f"Collected {len(t)} samples in {duration_s:.3f}s "
-      f"→ ~{len(t)/duration_s:.1f} Hz")
-
-# Data processing and plotting 
-# ---- Plot motion in x, y, z ----
-accel_fig = plt.figure()
-plt.plot(t, ax_arr, label="ax (m/s²)")
-plt.plot(t, ay_arr, label="ay (m/s²)")
-plt.plot(t, az_arr, label="az (m/s²)")
+# ---- time-domain plot ----
+plt.figure()
+plt.plot(t, ax, label="ax (m/s²)")
+plt.plot(t, ay, label="ay (m/s²)")
+plt.plot(t, az, label="az (m/s²)")
 plt.xlabel("Time (s)")
 plt.ylabel("Acceleration (m/s²)")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-accel_fig.savefig(trial_dir / "time_domain.png", dpi=150)
+plt.savefig(trial_dir / "time_domain.png", dpi=150)
 
+# ---- FFT (per axis) ----
+# Detrend by removing mean (DC)
+ax0 = ax - ax.mean()
+ay0 = ay - ay.mean()
+az0 = az - az.mean()
 
-t = np.asarray(t_list, dtype=float)
-ax_arr = np.asarray(ax_list, dtype=float)
-print(f"average acceleration in the x-direction {np.mean(np.asarray(ax_list, dtype=float))}")
-ay_arr = np.asarray(ay_list, dtype=float)
-print(f"average acceleration in the y-direction {np.mean(np.asarray(ay_list, dtype=float))}")
+freqs = np.fft.rfftfreq(len(t), d=1.0/fs)
+Ax_fft = np.fft.rfft(ax0)
+Ay_fft = np.fft.rfft(ay0)
+Az_fft = np.fft.rfft(az0)
 
-az_arr = np.asarray(az_list, dtype=float)
-print(f"average acceleration in the z-direction {np.mean(np.asarray(az_list, dtype=float))}")
+Ax_mag = np.abs(Ax_fft)
+Ay_mag = np.abs(Ay_fft)
+Az_mag = np.abs(Az_fft)
 
-duration_s = t[-1] - t[0]
-print(f"Collected {len(t)} samples in {duration_s:.3f}s "
-      f"→ ~{len(t)/duration_s:.1f} Hz")
-# --- Frequency-domain (FFT) of IMU motion ---
-if len(t) > 1:
-    dt = np.mean(np.diff(t))          # sampling period
-    freqs = np.fft.rfftfreq(len(t), d=dt)
+# ignore DC bin for "dominant freq"
+dom_x = freqs[1 + np.argmax(Ax_mag[1:])]
+dom_y = freqs[1 + np.argmax(Ay_mag[1:])]
+dom_z = freqs[1 + np.argmax(Az_mag[1:])]
 
-    Ax_fft = np.fft.rfft(ax_arr - ax_arr.mean())
-    Ay_fft = np.fft.rfft(ay_arr - ay_arr.mean())
-    Az_fft = np.fft.rfft(az_arr - az_arr.mean())
-    
-    # Optional: dominant frequency of the vibrator (pick one axis)
-    dom_idx = np.argmax(np.abs(Ax_fft))
-    dom_freq_x = freqs[dom_idx]
-    print(f"Dominant X-axis frequency ≈ {dom_freq_x:.2f} Hz")
-    dom_idy = np.argmax(np.abs(Ay_fft))
-    dom_freq_y = freqs[dom_idy]
-    print(f"Dominant Y-axis frequency ≈ {dom_freq_y:.2f} Hz")
-    dom_idz = np.argmax(np.abs(Az_fft))
-    dom_freq_z= freqs[dom_idz]
-    print(f"Dominant Z-axis frequency: {dom_freq_z:.2f} Hz")
-    Ax_mag = np.abs(Ax_fft)
-    Ay_mag = np.abs(Ay_fft)
-    Az_mag = np.abs(Az_fft)
-    # with open(trial_dir / "accel_freq.csv", "w", newline="") as f:
-    #     w = csv.writer(f)
-    #     w.writerow(["freq_Hz", "Ax_mag", "Ay_mag", "Az_mag"])
-    #     for fhz, X, Y, Z in zip(freqs, Ax_mag, Ay_mag, Az_mag):
-    #         w.writerow([fhz, X, Y, Z])
+print(f"Dominant freq X: {dom_x:.2f} Hz")
+print(f"Dominant freq Y: {dom_y:.2f} Hz")
+print(f"Dominant freq Z: {dom_z:.2f} Hz")
 
-    freq_fig = plt.figure()
-    plt.plot(freqs, np.abs(Ax_fft), label="X")
-    plt.plot(freqs, np.abs(Ay_fft), label="Y")
-    plt.plot(freqs, np.abs(Az_fft), label="Z")
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Magnitude")
-    plt.title("IMU vibration spectrum")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    freq_fig.savefig(trial_dir / "freqency_domain.png", dpi=150)
+plt.figure()
+plt.plot(freqs, Ax_mag, label="X")
+plt.plot(freqs, Ay_mag, label="Y")
+plt.plot(freqs, Az_mag, label="Z")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude")
+plt.title("IMU vibration spectrum")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig(trial_dir / "frequency_domain.png", dpi=150)
 
-#plt.show()
-print(f"Got {len(t_list)} samples")
-with open(trial_dir / "result_summary.txt", "w") as f:
+# ---- summary file ----
+summary_path = trial_dir / "result_summary.txt"
+with open(summary_path, "w") as f:
+    f.write(f"Input: {INPUT_CSV}\n")
     f.write(f"Samples: {len(t)}\n")
-    f.write(f"Duration: {duration_s:.3f} s\n")
-    f.write(f"Sample rate:{len(t)/duration_s:.1f} Hz\n")
-    f.write(f"Dominant X-axis frequency: {dom_freq_x:.2f} Hz\n")
-    f.write(f"Dominant Y-axis frequency: {dom_freq_y:.2f} Hz\n")
-    f.write(f"Dominant Z-axis frequency: {dom_freq_z:.2f} Hz\n")
-    f.write(f"average acceleration in the x-direction {np.mean(np.asarray(ax_list, dtype=float))}\n")
-    f.write(f"average acceleration in the y-direction {np.mean(np.asarray(ay_list, dtype=float))}\n")
-    f.write(f"average acceleration in the z-direction {np.mean(np.asarray(az_list, dtype=float))}\n")
+    f.write(f"Duration: {duration_s:.6f} s\n")
+    f.write(f"Estimated sample rate: {fs:.3f} Hz\n")
+    f.write(f"Mean ax (m/s^2): {ax.mean():.6f}\n")
+    f.write(f"Mean ay (m/s^2): {ay.mean():.6f}\n")
+    f.write(f"Mean az (m/s^2): {az.mean():.6f}\n")
+    f.write(f"Dominant freq X (Hz): {dom_x:.3f}\n")
+    f.write(f"Dominant freq Y (Hz): {dom_y:.3f}\n")
+    f.write(f"Dominant freq Z (Hz): {dom_z:.3f}\n")
 
+print("Wrote", summary_path)
+print("Done.")
