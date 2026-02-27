@@ -50,4 +50,6 @@ void imu_init();
 void imu_write_reg(user_bank_t bank, uint8_t reg, uint8_t data);
 void imu_read_reg(user_bank_t bank, uint8_t address, uint8_t *data);
 void imu_read_data(imu_data_t *data);
+void transmit_uint8(uint16_t value);
+void transmit_xyz(int16_t x, int16_t y, int16_t z);
 #endif //HW_IMU_H_

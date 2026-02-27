@@ -11,7 +11,9 @@ data -> the output data from the processing
 ## Tools 
 - STM32h7 nucleo board 
 - ICM20948 IMU sensor 
-
+- STMcubemx
+Please refer to this schematic for the pin connection of the STM32h723zg
+https://www.st.com/resource/en/schematic_pack/mb1364-h723zg-e01_schematic.pdf 
 
 
 ## How the sensor works

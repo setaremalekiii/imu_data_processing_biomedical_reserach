@@ -80,23 +80,23 @@ void imu_read_data(imu_data_t *data){
     data -> x_accel = ((uint16_t)data_rx[0] << 8) + data_rx[1];
     data -> y_accel = ((uint16_t)data_rx[2] << 8) + data_rx[3];
     data -> z_accel = ((uint16_t)data_rx[4] << 8) + data_rx[5];
-    //trying to see if I can print the data 
-    //const uint16_t buffer[] = data.x_accel;
-    // sel_user_bank(_b0);
-    // uint8_t tx[7] = { (uint8_t)(0x80 | ACCEL_XOUT_H), 0,0,0,0,0,0 };
-    // uint8_t buf[] = "hello";
-    // uint8_t rx[7];
-
-    // activate_imu();
-    // HAL_StatusTypeDef tatu;
-    // tatu = HAL_SPI_Transmit(&hspi1, buf, sizeof(buf)/ sizeof(buf[0]), 250);
-    // // tatu = HAL_SPI_TransmitReceive(&hspi1, tx, rx, sizeof(tx), 100);
-    // deactivate_imu();
-
-    // // rx[0] is dummy (during address phase). Data starts at rx[1].
-    // data->x_accel = (int16_t)((rx[1] << 8) | rx[2]);
-    // data->y_accel = (int16_t)((rx[3] << 8) | rx[4]);
-    // data->z_accel = (int16_t)((rx[5] << 8) | rx[6]);
-
 }
+
+//Helper function 
+void transmit_uint8(uint16_t value) {
+    char buf[10]; // "-32768\r\n" fits
+    int n = snprintf(buf, sizeof(buf), "%d\r\n", (int)value);
+    if (n > 0) HAL_UART_Transmit(&huart3, (uint8_t*)buf, (uint16_t)strlen(buf), 100);
+  }
+
+  // faster method of transmitting all data at once! 
+void transmit_xyz(int16_t x, int16_t y, int16_t z)
+{
+    char buf[64];
+    int n = snprintf(buf, sizeof(buf), "%d,%d,%d\n", (int)x, (int)y, (int)z);
+    if (n > 0) {
+        HAL_UART_Transmit(&huart3, (uint8_t*)buf, (uint16_t)n, 100);
+    }
+}
+
 

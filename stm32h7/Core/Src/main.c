@@ -54,7 +54,7 @@ volatile uint8_t spi_recieve_flag = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MPU_Config(void);
+// static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_SPI1_Init(void);
@@ -81,7 +81,7 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  //MPU_Config();
+  // MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -106,12 +106,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // reg bank select address we want to say pick reg bank zero cuz it contains that who_am_i reg at 1   
-  void transmit_uint8(uint16_t value) {
-    char buf[10]; // "-32768\r\n" fits
-    int n = snprintf(buf, sizeof(buf), "%d\r\n", (int)value);
-    if (n > 0) HAL_UART_Transmit(&huart3, (uint8_t*)buf, (uint16_t)strlen(buf), 100);
-  }
-
   //initialize imu 
   imu_init();
 
@@ -160,18 +154,19 @@ int main(void)
 
     imu_read_data(&imu_data);
     //HAL_UART_Transmit(&huart3, &imu_data, 1, 100);
+    transmit_xyz(imu_data.x_accel, imu_data.y_accel, imu_data.z_accel);
 
     // this is all for conversion take out after testing
-    HAL_Delay(1);
-    int16_t x_accel = imu_data.x_accel;
-    transmit_uint8(x_accel);
-    HAL_Delay(1);
-    int16_t y_accel = imu_data.y_accel;
-    transmit_uint8(y_accel);
-    HAL_Delay(1);
-    int16_t z_accel = imu_data.z_accel;
-    transmit_uint8(z_accel);
-    HAL_Delay(1);
+    // HAL_Delay(1);
+    // int16_t x_accel = imu_data.x_accel;
+    // transmit_uint8(x_accel);
+    // HAL_Delay(1);
+    // int16_t y_accel = imu_data.y_accel;
+    // transmit_uint8(y_accel);
+    // HAL_Delay(1);
+    // int16_t z_accel = imu_data.z_accel;
+    // transmit_uint8(z_accel);
+    // HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }
@@ -299,7 +294,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
+  huart3.Init.BaudRate = 921600;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;

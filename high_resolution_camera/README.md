@@ -1,0 +1,2 @@
+# Purpose: 
+This folder is allocated for high speed and resolution cameras that can capture motion. By picking a point on the object in a .mov file and tracking it's pixel motion frequency can be found.

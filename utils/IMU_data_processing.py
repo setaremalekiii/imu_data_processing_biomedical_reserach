@@ -3,19 +3,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
-# ---- config ----
-INPUT_CSV = "reading.csv"   # from the collector
+
+INPUT_CSV = "collected_data/reading_2026-02-26_16-43-21.csv"   # from the collector please change this path to analyze a different file if needed
 SCALE_LSB_PER_G = 16384.0     # adjust if your IMU full-scale is not ±2g
 G_TO_MS2 = 9.80665
 
-# ---- output folder ----
+# indicate the output path
 base_dir = Path("results")
 base_dir.mkdir(exist_ok=True)
 trial_dir = base_dir / datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 trial_dir.mkdir()
 print("Saving to", trial_dir)
 
-# ---- load raw csv ----
+# raw csv
 t_list, x_list, y_list, z_list = [], [], [], []
 
 with open(INPUT_CSV, "r", newline="") as f:
@@ -46,7 +46,7 @@ z_counts = np.asarray(z_list, dtype=float)
 if len(t) < 2:
     raise RuntimeError("Not enough samples in raw_accel.csv to process.")
 
-# ---- estimate sample rate from timestamps ----
+# get sampling rate estimate
 dt = np.diff(t)
 dt = dt[dt > 0]  # remove any zeros / weirdness
 fs = 1.0 / np.mean(dt)
@@ -55,7 +55,7 @@ print(f"Samples: {len(t)}")
 print(f"Duration: {duration_s:.3f} s")
 print(f"Estimated sample rate: {fs:.2f} Hz")
 
-# ---- convert counts -> g -> m/s^2 ----
+# g -> m/s^2
 ax = (x_counts / SCALE_LSB_PER_G) * G_TO_MS2
 ay = (y_counts / SCALE_LSB_PER_G) * G_TO_MS2
 az = (z_counts / SCALE_LSB_PER_G) * G_TO_MS2
@@ -64,7 +64,7 @@ print(f"Mean ax (m/s²): {ax.mean():.4f}")
 print(f"Mean ay (m/s²): {ay.mean():.4f}")
 print(f"Mean az (m/s²): {az.mean():.4f}")
 
-# ---- save scaled data ----
+# save scaled data
 scaled_path = trial_dir / "scaled_data.csv"
 with open(scaled_path, "w", newline="") as f:
     w = csv.writer(f)
@@ -73,7 +73,7 @@ with open(scaled_path, "w", newline="") as f:
         w.writerow([ti, x, y, z])
 print("Wrote", scaled_path)
 
-# ---- time-domain plot ----
+# time-domain plot
 plt.figure()
 plt.plot(t, ax, label="ax (m/s²)")
 plt.plot(t, ay, label="ay (m/s²)")
@@ -85,7 +85,7 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig(trial_dir / "time_domain.png", dpi=150)
 
-# ---- FFT (per axis) ----
+# FFT (per axis)
 # Detrend by removing mean (DC)
 ax0 = ax - ax.mean()
 ay0 = ay - ay.mean()
@@ -121,7 +121,7 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig(trial_dir / "frequency_domain.png", dpi=150)
 
-# ---- summary file ----
+# summary txt file
 summary_path = trial_dir / "result_summary.txt"
 with open(summary_path, "w") as f:
     f.write(f"Input: {INPUT_CSV}\n")
