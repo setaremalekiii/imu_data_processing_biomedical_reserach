@@ -3,7 +3,7 @@
 analyze_force_fft.py
 
 Usage:
-  python analyze_force_fft.py "C:/Users/setim/Downloads/VibrationTest1.CSV"
+  python analyze_force_fft.py "D:/No_fracture/2026-02-27_14_53_20/LoadCell-5min-setup2.CSV"
 
 Notes:
 - Expects two columns: time (seconds) and load/force (N), but names can vary.
@@ -116,7 +116,7 @@ def pick_top_peaks(freqs, amps, k=5, fmin=0.0):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python analyze_force_fft.py VibrationTest1.CSV")
+        print("Usage: python analyze_force_fft.py Test2-10min-setup1.CSV")
         sys.exit(1)
 
     path = sys.argv[1]
