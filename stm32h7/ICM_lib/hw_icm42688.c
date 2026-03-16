@@ -29,12 +29,9 @@ void imu_init(void){
     // HAL_Delay(100); // givnig some time for imu to wake up and be ready for communication
     // 
     // imu_write_reg(_b0, PWR_MGMT_1, 0x01); // exit sleep mode 
-    imu_write_reg(_b0, PWR_MGMT0, 0x80);   // DEVICE_RESET only // doublecheck 80
-    HAL_Delay(100);                        // 100ms is safe (often 10–100ms used)
-    imu_write_reg(_b0, PWR_MGMT0, 0x01);   // wake + PLL/auto clock (CLKSEL=1)
-    imu_write_reg(_b2, ODR_ALIGN_EN, 0x01); // data alignment -> synchornization not rlly needed 
-    imu_write_reg(_b2, ACCEL_SMPLRT_DIV_1,0x00); // MSB 
-    imu_write_reg(_b2, ACCEL_SMPLRT_DIV_2,0x00); //Page 63
+    imu_write_reg(_b0, PWR_MGMT0, 0x40);   // 0b01000000 reset
+    HAL_Delay(100);                        // 100ms is safe (often 45ms used)
+    imu_write_reg(_b0, PWR_MGMT0, 0x01);   // wake 0b01000011
     imu_write_reg(_b2, ACCEL_CONFIG, ((ACCEL_RANGE_VALUE<< 1)|0x01)); // turning on the digital lowpass filter
     // 00010000 the 4th bit is enabled meaning disable I2C and enable SPI
     imu_read_reg(_b0, USER_CTRL, &temp_data); // serial interface entering spi mode
