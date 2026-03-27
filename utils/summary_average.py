@@ -1,61 +1,68 @@
 import os
-import glob
 import re
 
 def parse_txt_file(filepath):
-    """Parse a single txt file and extract dominant frequencies."""
-    freqs = []
+    data = {
+        'mean_ax': None, 'mean_ay': None, 'mean_az': None,
+        'freq_X': None, 'freq_Y': None, 'freq_Z': None
+    }
     with open(filepath, 'r') as f:
-        for line in f.readlines():
-            match = re.search(r'Dominant freq [XYZ] \(Hz\):\s*([\d.]+)', line)
-            if match:
-                freqs.append(float(match.group(1)))
-    return freqs
-
-def get_average_dominant_freq(folder):
-    """Find the txt file in a folder and return average of all dominant frequencies."""
-    txt_files = glob.glob(os.path.join(folder, '*.txt'))
-    if len(txt_files) == 0:
-        return None, "No .txt file found"
-    if len(txt_files) > 1:
-        return None, f"Multiple .txt files found: {txt_files}"
+        content = f.read()
     
-    freqs = parse_txt_file(txt_files[0])
-    if not freqs:
-        return None, "No dominant frequencies found in file"
+    patterns = {
+        'mean_ax': r'Mean ax \(m/s\^2\):\s*([-\d.]+)',
+        'mean_ay': r'Mean ay \(m/s\^2\):\s*([-\d.]+)',
+        'mean_az': r'Mean az \(m/s\^2\):\s*([-\d.]+)',
+        'freq_X':  r'Dominant freq X \(Hz\):\s*([\d.]+)',
+        'freq_Y':  r'Dominant freq Y \(Hz\):\s*([\d.]+)',
+        'freq_Z':  r'Dominant freq Z \(Hz\):\s*([\d.]+)',
+    }
     
-    return sum(freqs) / len(freqs), None
-
-def process_all_subfolders(root_dir):
-    """Walk through all subfolders and compute average dominant frequency per subfolder."""
-    results = {}
-
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        # Skip the root folder itself
-        if dirpath == root_dir:
-            continue
-        
-        txt_files = [f for f in filenames if f.endswith('.txt')]
-        if not txt_files:
-            continue
-
-        avg_freq, error = get_average_dominant_freq(dirpath)
-        rel_path = os.path.relpath(dirpath, root_dir)
-
-        if error:
-            print(f"[SKIP] {rel_path}: {error}")
+    for key, pattern in patterns.items():
+        match = re.search(pattern, content)
+        if match:
+            data[key] = float(match.group(1))
         else:
-            results[rel_path] = avg_freq
-            print(f"{rel_path}: Average dominant frequency = {avg_freq:.3f} Hz")
-
-    return results
+            print(f"  WARNING: could not find '{key}' in {filepath}")
+    
+    return data
 
 if __name__ == "__main__":
-    root_dir = "E:/IMU_only/results/standardized/frac"  # CHANGE THIS to your root folder
+    root_dir = "E:/IMU_only/results/standardized/softCal"
 
-    print(f"Scanning subfolders in: {root_dir}\n")
-    results = process_all_subfolders(root_dir)
+    all_data = {
+        'mean_ax': [], 'mean_ay': [], 'mean_az': [],
+        'freq_X': [], 'freq_Y': [], 'freq_Z': []
+    }
 
-    print(f"\n--- Summary ---")
-    for folder, avg in results.items():
-        print(f"{folder}: {avg:.3f} Hz")
+    txt_files_found = []
+
+    # find all txt files one level deep (each subfolder has one txt)
+    for subfolder in os.listdir(root_dir):
+        subfolder_path = os.path.join(root_dir, subfolder)
+        if os.path.isdir(subfolder_path):
+            for f in os.listdir(subfolder_path):
+                if f.endswith('.txt'):
+                    full_path = os.path.join(subfolder_path, f)
+                    txt_files_found.append(full_path)
+                    print(f"Found: {full_path}")
+                    parsed = parse_txt_file(full_path)
+                    for key in all_data:
+                        if parsed[key] is not None:
+                            all_data[key].append(parsed[key])
+
+    print(f"\nTotal txt files parsed: {len(txt_files_found)}\n")
+
+    for key, values in all_data.items():
+        print(f"  {key}: {values}")
+    output_path = os.path.join(root_dir, "averages_summary_over_10_trials.txt")
+    with open(output_path, 'w') as f:
+        f.write(f"Total txt files parsed: {len(txt_files_found)}\n\n")
+        f.write(f"Average ax:          {sum(all_data['mean_ax']) / len(all_data['mean_ax']):.4f} m/s^2\n")
+        f.write(f"Average ay:          {sum(all_data['mean_ay']) / len(all_data['mean_ay']):.4f} m/s^2\n")
+        f.write(f"Average az:          {sum(all_data['mean_az']) / len(all_data['mean_az']):.4f} m/s^2\n")
+        f.write(f"Average Dominant X:  {sum(all_data['freq_X']) / len(all_data['freq_X']):.3f} Hz\n")
+        f.write(f"Average Dominant Y:  {sum(all_data['freq_Y']) / len(all_data['freq_Y']):.3f} Hz\n")
+        f.write(f"Average Dominant Z:  {sum(all_data['freq_Z']) / len(all_data['freq_Z']):.3f} Hz\n")
+    
+    print(f"Results saved to: {output_path}")
